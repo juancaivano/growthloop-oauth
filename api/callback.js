@@ -28,19 +28,21 @@ module.exports = (req, res) => {
     let body = '';
     response.on('data', (chunk) => (body += chunk));
     response.on('end', () => {
+      console.log('🔍 Raw response body:', body);
       try {
         const json = JSON.parse(body);
         console.log('✅ Access token:', json.access_token);
         console.log('🛍️ Store ID:', json.user_id);
         res.end('✅ Conexión exitosa. Ya podés cerrar esta ventana.');
       } catch (e) {
+        console.error('❌ Error al parsear respuesta:', e);
         res.status(500).send('Error al parsear respuesta');
       }
     });
   });
 
   request.on('error', (error) => {
-    console.error(error);
+    console.error('❌ Error de red:', error);
     res.status(500).send('Error interno');
   });
 
