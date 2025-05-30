@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     client_secret: process.env.CLIENT_SECRET,
     grant_type: 'authorization_code',
     code,
-    redirect_uri: 'https://growthloop-oauth.vercel.app/api/callback'
+    redirect_uri: process.env.REDIRECT_URI
   });
 
   try {
@@ -29,7 +29,10 @@ export default async function handler(req, res) {
 
     if (!contentType || !contentType.includes('application/json')) {
       const text = await response.text();
-      return res.status(500).json({ error: 'Respuesta no válida del servidor de Tiendanube', body: text });
+      return res.status(500).json({
+        error: 'Respuesta no válida del servidor de Tiendanube',
+        raw: text
+      });
     }
 
     const data = await response.json();
