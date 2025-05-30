@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Falta el parámetro 'code' en la URL" });
   }
 
-  const tokenUrl = 'https://www.tiendanube.com/apps/token';
+  const tokenUrl = 'https://www.tiendanube.com/apps/authorize/token';
 
   const body = new URLSearchParams({
     client_id: process.env.CLIENT_ID,
