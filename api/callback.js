@@ -1,17 +1,15 @@
-const https = require('https');
+import https from 'https';
+import querystring from 'querystring';
 
-module.exports = (req, res) => {
-  const { code } = req.query;
-  const { CLIENT_ID, CLIENT_SECRET, REDIRECT_URI } = process.env;
+export default async function handler(req, res) {
+  const code = req.query.code;
 
-  if (!code) return res.status(400).send('Missing code');
-
-  const data = JSON.stringify({
-    client_id: CLIENT_ID,
-    client_secret: CLIENT_SECRET,
+  const data = querystring.stringify({
+    client_id: process.env.CLIENT_ID,
+    client_secret: process.env.CLIENT_SECRET,
     grant_type: 'authorization_code',
-    code,
-    redirect_uri: REDIRECT_URI,
+    code: code,
+    redirect_uri: process.env.REDIRECT_URI
   });
 
   const options = {
@@ -19,33 +17,35 @@ module.exports = (req, res) => {
     path: '/apps/token',
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
       'Content-Length': data.length,
-    },
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+    }
   };
 
-  const request = https.request(options, (response) => {
+  const request = https.request(options, response => {
     let body = '';
-    response.on('data', (chunk) => (body += chunk));
+    response.on('data', chunk => {
+      body += chunk;
+    });
     response.on('end', () => {
-      console.log('🔍 Raw response body:', body);
       try {
         const json = JSON.parse(body);
-        console.log('✅ Access token:', json.access_token);
-        console.log('🛍️ Store ID:', json.user_id);
-        res.end('✅ Conexión exitosa. Ya podés cerrar esta ventana.');
-      } catch (e) {
-        console.error('❌ Error al parsear respuesta:', e);
-        res.status(500).send('Error al parsear respuesta');
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(json, null, 2));
+      } catch (error) {
+        console.error("❌ Error al parsear respuesta:", error.message);
+        res.setHeader('Content-Type', 'text/plain');
+        res.end("❌ Error al parsear respuesta:\n\n" + body);
       }
     });
   });
 
-  request.on('error', (error) => {
-    console.error('❌ Error de red:', error);
-    res.status(500).send('Error interno');
+  request.on('error', error => {
+    console.error("Request error:", error);
+    res.status(500).json({ error: 'Request failed', details: error.message });
   });
 
   request.write(data);
   request.end();
-};
+}
