@@ -1,34 +1,49 @@
-export default async function handler(req, res) {
+const https = require('https');
+
+module.exports = (req, res) => {
   const { code } = req.query;
   const { CLIENT_ID, CLIENT_SECRET, REDIRECT_URI } = process.env;
 
   if (!code) return res.status(400).send('Missing code');
 
-  try {
-    const response = await fetch('https://www.tiendanube.com/apps/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: REDIRECT_URI,
-      }),
+  const data = JSON.stringify({
+    client_id: CLIENT_ID,
+    client_secret: CLIENT_SECRET,
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: REDIRECT_URI,
+  });
+
+  const options = {
+    hostname: 'www.tiendanube.com',
+    path: '/apps/token',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': data.length,
+    },
+  };
+
+  const request = https.request(options, (response) => {
+    let body = '';
+    response.on('data', (chunk) => (body += chunk));
+    response.on('end', () => {
+      try {
+        const json = JSON.parse(body);
+        console.log('✅ Access token:', json.access_token);
+        console.log('🛍️ Store ID:', json.user_id);
+        res.end('✅ Conexión exitosa. Ya podés cerrar esta ventana.');
+      } catch (e) {
+        res.status(500).send('Error al parsear respuesta');
+      }
     });
+  });
 
-    const data = await response.json();
-
-    if (!data.access_token) {
-      return res.status(400).json({ error: 'Failed to get access token', details: data });
-    }
-
-    console.log('✅ Access Token:', data.access_token);
-    console.log('🛍️ Store ID:', data.user_id);
-
-    res.send('✅ Conexión exitosa. Ya podés cerrar esta ventana.');
-  } catch (err) {
-    console.error(err);
+  request.on('error', (error) => {
+    console.error(error);
     res.status(500).send('Error interno');
-  }
-}
+  });
+
+  request.write(data);
+  request.end();
+};
